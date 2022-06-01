@@ -8,10 +8,13 @@
 import UIKit
 import ARKit
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, ARSCNViewDelegate {
 
+    @IBOutlet weak var sceneView: ARSCNView!
+    
+    var emotion = "No Emotion Presented"
     //The sceneview that we are going to display.
-    private let sceneView = ARSCNView(frame: UIScreen.main.bounds)
+//    private let sceneView = ARSCNView(frame: UIScreen.main.bounds)
     //The CoreML model we use for emotion classification.
     private let model = try! VNCoreMLModel(for: CNNEmotions().model)
     //The scene node containing the emotion text.
@@ -43,12 +46,15 @@ class ViewController: UIViewController {
         self.textNode = textNode
         sceneView.scene.rootNode.addChildNode(textNode)
     }
+    @IBAction func captureButtonPressed(_ sender: UIButton) {
+        print(emotion)
+    }
+    
 
-}
 
-extension ViewController: ARSCNViewDelegate {
 
-    func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
+
+    @objc(renderer:nodeForAnchor:) func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
         guard let device = sceneView.device else { return nil }
         let node = SCNNode(geometry: ARSCNFaceGeometry(device: device))
         //Projects the white lines on the face.
@@ -56,12 +62,12 @@ extension ViewController: ARSCNViewDelegate {
         return node
     }
 
-    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+    @objc(renderer:didAddNode:forAnchor:) func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         guard let faceGeometry = node.geometry as? ARSCNFaceGeometry, textNode == nil else { return }
         addTextNode(faceGeometry: faceGeometry)
     }
 
-    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+    @objc(renderer:didUpdateNode:forAnchor:) func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
         guard let faceAnchor = anchor as? ARFaceAnchor,
             let faceGeometry = node.geometry as? ARSCNFaceGeometry,
             let pixelBuffer = self.sceneView.session.currentFrame?.capturedImage
@@ -76,14 +82,16 @@ extension ViewController: ARSCNViewDelegate {
         try? VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:]).perform([VNCoreMLRequest(model: model) { [weak self] request, error in
                 //Here we get the first result of the Classification Observation result.
                 guard let firstResult = (request.results as? [VNClassificationObservation])?.first else { return }
-                DispatchQueue.main.async {
+            DispatchQueue.main.async { [self] in
 //                print("identifier: \(topResult.identifier), confidence: \(topResult.confidence)")
                     //Check if the confidence is high enough - used an arbitrary value here - and update the text to display the resulted emotion.
-                    if firstResult.confidence > 0.92 {
+                    if firstResult.confidence > 0.75 {
                         (self?.textNode?.geometry as? SCNText)?.string = firstResult.identifier
+                        self!.emotion = firstResult.identifier
+//                        print(self!.emotion)
                     }
                 }
             }])
     }
-
 }
+
