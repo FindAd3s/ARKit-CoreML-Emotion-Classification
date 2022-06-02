@@ -1,4 +1,7 @@
 # ARKit-CoreML-Emotion-Classification
+
+This version tweaks the example made by Bogdan Razvan to become a module of an application.
+
 Example of ARKit and CoreML Usage on Emotion Classification
 
 Download the MLModel from here and import it in your project:
